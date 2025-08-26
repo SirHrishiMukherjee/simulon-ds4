@@ -6,13 +6,13 @@
   <title>DS4 • Unified GR–QM–HR • Canvas Simulator</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root { --bg:#0f1115; --panel:#171b22; --card:#1b2230; --ink:#e8eef7; --muted:#9fb2c7; --ok:#51d195; --bad:#ff6b6b; }
+    :root { --bg:#0f1115; --panel:#171b22; --card:#1b2230; --ink:#e8eef7; --muted:#9fb2c7; --ok:#51d195; --bad:#ff6b6b; --accent:#7aa2ff; }
     body { background: linear-gradient(180deg, #0b0f15, #0f1115); color: var(--ink); }
     .card { background: var(--card); border: 1px solid #243047; border-radius: 16px; }
     .panel { background: var(--panel); border: 1px solid #212c3f; border-radius: 12px; }
     .label { color: var(--muted); font-size: 12px; }
     .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-    @media(min-width: 1024px){ .grid-2 { grid-template-columns: 360px 1fr; } }
+    @media(min-width: 1024px){ .grid-2 { grid-template-columns: 380px 1fr; } }
     .badge { padding: 2px 8px; border-radius: 9999px; font-size: 11px; }
     .badge-ok { background: #1b4731; color: #c5f6d6; border: 1px solid #2c6f4a; }
     .badge-bad { background: #4a1b1b; color: #ffd1d1; border: 1px solid #733232; }
@@ -31,9 +31,11 @@
   </header>
 
   <main class="max-w-7xl mx-auto p-4 lg:p-6 grid-2">
+
     <!-- Controls -->
     <section class="card p-4 lg:p-6 space-y-4">
       <h2 class="text-xl font-semibold">Parameters</h2>
+
       <div class="grid grid-cols-2 gap-3">
         <div>
           <div class="label mb-1">L range</div>
@@ -140,6 +142,47 @@
           <div class="label mb-1">Volume (m³)</div>
           <input id="volume" type="number" class="panel w-full p-2" value="100">
         </div>
+
+        <div class="col-span-2 border-t border-white/10 pt-2"></div>
+
+        <!-- Gott‑Time Panel (relativistic, δ & twist) -->
+        <div class="col-span-2">
+          <h3 class="font-semibold mb-2">Gott‑Time (Cosmic Strings, Relativistic)</h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <div class="label mb-1">R (m)</div>
+              <input id="gott_R" type="number" class="panel w-full p-2" value="1000">
+            </div>
+            <div>
+              <div class="label mb-1">μ (kg/m)</div>
+              <input id="gott_mu" type="number" class="panel w-full p-2" value="1e10">
+            </div>
+            <div>
+              <div class="label mb-1">v / c (0..0.999)</div>
+              <input id="gott_vfrac" type="number" step="0.001" class="panel w-full p-2" value="0.90">
+            </div>
+            <div>
+              <div class="label mb-1">k<sub>G</sub> (scaling)</div>
+              <input id="gott_k" type="number" step="0.1" class="panel w-full p-2" value="1.0">
+            </div>
+            <div>
+              <div class="label mb-1">Loops (N)</div>
+              <input id="gott_loops" type="number" step="1" min="1" class="panel w-full p-2" value="1">
+            </div>
+            <div>
+              <div class="label mb-1">CTC heuristic threshold τ*</div>
+              <input id="gott_tau_th" type="number" step="0.1" class="panel w-full p-2" value="1.0">
+            </div>
+          </div>
+          <div class="mt-2 text-xs text-gray-400 leading-relaxed">
+            Model: cosmic string deficit angle \(\delta = \frac{8\pi G\,\mu}{c^2}\). A moving string (speed \(v=\beta c\), Lorentz \(\gamma\)) introduces a twist/holonomy factor \(\tau = \gamma\,\beta\,|\delta|\). A heuristic closed‑timelike‑curve (CTC) indicator is \(\tau > \tau^*\). Time‑twist accumulation per circuit is modeled as \(T_{twist} = k_G\,N\,\tau\,\frac{R}{c}\).
+          </div>
+          <div class="flex items-center gap-3 pt-3">
+            <button id="run-gott" class="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700">Compute Gott‑Time</button>
+            <span id="gott_status" class="text-sm text-gray-300"></span>
+          </div>
+          <div id="gott_results" class="text-sm mt-2"></div>
+        </div>
       </div>
 
       <div class="flex items-center gap-3 pt-3">
@@ -147,7 +190,7 @@
         <button id="run-tests" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Run Tests</button>
         <span id="status" class="text-sm text-gray-300"></span>
       </div>
-      <p class="text-xs text-gray-400 pt-2">This standalone version reproduces the Flask UI behavior entirely in the browser for Canvas preview. It now safely loads Plotly (with fallbacks) and includes a simple canvas fallback if CDNs are blocked.</p>
+      <p class="text-xs text-gray-400 pt-2">This standalone version safely loads Plotly (with multi‑CDN fallbacks) and includes canvas fallbacks if CDNs are blocked.</p>
     </section>
 
     <!-- Plots -->
@@ -168,6 +211,18 @@
         <div id="plot_phase" class="w-full" style="height:420px; position:relative;"></div>
       </div>
 
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div class="card p-3">
+          <div class="text-sm label mb-2">3D Curve • (L, ds⁴, X)</div>
+          <div id="plot_3d" class="w-full" style="height:420px; position:relative;"></div>
+          <div class="text-xs text-gray-400">Uses Plotly <span class="text-[10px]">scatter3d</span> when available, else a perspective canvas fallback.</div>
+        </div>
+        <div class="card p-3">
+          <div class="text-sm label mb-2">Gott‑Time sweep • T<sub>twist</sub>(R)</div>
+          <div id="plot_gott" class="w-full" style="height:420px; position:relative;"></div>
+        </div>
+      </div>
+
       <div class="grid lg:grid-cols-3 gap-4">
         <div class="panel p-4">
           <div class="text-sm label mb-2">Warp Energy</div>
@@ -186,7 +241,7 @@
   </main>
 
   <script>
-    // ------- Robust Plotly loader with multiple CDNs + canvas fallback -------
+    // ------- Robust Plotly loader with multiple CDNs + canvas fallbacks -------
     const PLOTLY_SOURCES = [
       'https://cdn.plot.ly/plotly-2.35.2.min.js',
       'https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
@@ -209,7 +264,7 @@
       return false;
     }
 
-    // Minimal canvas fallback: supports simple line plots (first trace only)
+    // --------- Canvas fallbacks ---------
     function fallbackLine(divId, data, layout){
       const host = document.getElementById(divId);
       host.innerHTML = '';
@@ -234,22 +289,76 @@
       ctx.moveTo(sx(x[0]), sy(y[0]));
       for(let i=1;i<x.length;i++){ ctx.lineTo(sx(x[i]), sy(y[i])); }
       ctx.stroke();
-      // title (optional)
-      if (layout && layout.xaxis && layout.xaxis.title){ ctx.fillStyle = '#9fb2c7'; ctx.fillText(layout.xaxis.title, canvas.width/2 - 20, canvas.height - 8);}    }
+    }
 
-    // Unified plot wrapper; if Plotly exists, use it; else fallback
+    function fallback3D(divId, data, layout){
+      const host = document.getElementById(divId);
+      host.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'simple-plot';
+      canvas.width = host.clientWidth; canvas.height = host.clientHeight;
+      host.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      const trace = (data && data[0]) ? data[0] : {x:[], y:[], z:[]};
+      const X = trace.x || [], Y = trace.y || [], Z = trace.z || [];
+      if(!X.length){ ctx.fillStyle = '#9fb2c7'; ctx.fillText('No data', 10, 20); return; }
+      const xmin = Math.min(...X), xmax = Math.max(...X);
+      const ymin = Math.min(...Y), ymax = Math.max(...Y);
+      const zmin = Math.min(...Z), zmax = Math.max(...Z);
+      const pad = 40; const w = canvas.width, h = canvas.height;
+
+      // simple rotation + perspective
+      const ax = -0.6, ay = 0.8; const dist = 3.0; // tweak for view
+      function norm(v, vmin, vmax){ return (v - vmin) / ((vmax - vmin) || 1); }
+      function rotProject(x,y,z){
+        // normalize to 0..1 for each axis first
+        let nx = norm(x, xmin, xmax), ny = norm(y, ymin, ymax), nz = norm(z, zmin, zmax);
+        // scale to [-1,1]
+        nx = nx*2-1; ny = ny*2-1; nz = nz*2-1;
+        // rotate around Y then X
+        const cy = Math.cos(ay), sy = Math.sin(ay);
+        let xr =  cy*nx + sy*nz;
+        let zr = -sy*nx + cy*nz;
+        const cx = Math.cos(ax), sx = Math.sin(ax);
+        let yr =  cx*ny - sx*zr;
+        zr =  sx*ny + cx*zr;
+        // perspective
+        const pz = (zr + dist);
+        const px = pad + (xr+1)*0.5*(w-2*pad) / pz;
+        const py = h - (pad + (yr+1)*0.5*(h-2*pad) / pz);
+        return [px, py];
+      }
+
+      ctx.strokeStyle = '#7aa2ff'; ctx.lineWidth = 2; ctx.beginPath();
+      let [x0,y0] = rotProject(X[0], Y[0], Z[0]);
+      ctx.moveTo(x0,y0);
+      for(let i=1;i<X.length;i++){
+        const [xp, yp] = rotProject(X[i], Y[i], Z[i]);
+        ctx.lineTo(xp, yp);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#9fb2c7'; ctx.fillText('Canvas 3D fallback', 10, 16);
+    }
+
+    // Unified plot wrapper
     const Plot = {
       react(divId, data, layout){
         if (window.Plotly && typeof window.Plotly.react === 'function'){
           return window.Plotly.react(divId, data, layout);
         }
         return fallbackLine(divId, data, layout);
+      },
+      react3d(divId, data, layout){
+        if (window.Plotly && typeof window.Plotly.react === 'function'){
+          return window.Plotly.react(divId, data, layout);
+        }
+        return fallback3D(divId, data, layout);
       }
     };
 
     function markPlotEngine(){
       const el = document.getElementById('plot-engine');
-      if (window.Plotly){ el.textContent = 'Plot engine: Plotly'; el.className = 'badge badge-ok'; }
+      if (window.Plotly){ el.textContent = 'Plot engine: Plotly (3D ✓)'; el.className = 'badge badge-ok'; }
       else { el.textContent = 'Plot engine: Canvas fallback'; el.className = 'badge badge-bad'; }
     }
 
@@ -290,7 +399,14 @@
         mass: parseFloat(document.getElementById("mass").value),
         E_total: parseFloat(document.getElementById("E_total").value),
         rho_energy: parseFloat(document.getElementById("rho_energy").value),
-        volume: parseFloat(document.getElementById("volume").value)
+        volume: parseFloat(document.getElementById("volume").value),
+
+        gott_R: parseFloat(document.getElementById("gott_R").value),
+        gott_mu: parseFloat(document.getElementById("gott_mu").value),
+        gott_vfrac: parseFloat(document.getElementById("gott_vfrac").value),
+        gott_k: parseFloat(document.getElementById("gott_k").value),
+        gott_loops: parseFloat(document.getElementById("gott_loops").value),
+        gott_tau_th: parseFloat(document.getElementById("gott_tau_th").value)
       };
     }
 
@@ -331,6 +447,26 @@
       return { ds4: res_ds4, X: res_X, rho: t.rho };
     }
 
+    // ---------- Gott-Time (relativistic, δ & twist) ----------
+    const G = 6.674e-11; // SI
+    const c = 299792458.0;
+    function computeGottRelativistic(p){
+      const R = p.gott_R ?? 1000;
+      const mu = p.gott_mu ?? 1e10; // kg/m (can be negative to flag exotic regime)
+      let beta = p.gott_vfrac ?? 0.9; beta = Math.max(0, Math.min(0.999, beta));
+      const kG = p.gott_k ?? 1.0;
+      const loops = Math.max(1, Math.round(p.gott_loops ?? 1));
+      const tau_th = p.gott_tau_th ?? 1.0;
+
+      const gamma = 1.0/Math.sqrt(1.0 - beta*beta);
+      const delta = 8*Math.PI*G*mu/(c*c); // can be negative if mu<0
+      const tau = Math.abs(delta) * gamma * beta; // twist/holonomy magnitude
+      const T_twist = kG * loops * tau * (R / c); // s
+
+      const ctcLikely = tau > tau_th;
+      return { R, mu, beta, gamma, delta, tau, T_twist, loops, tau_th, ctcLikely };
+    }
+
     function computeEnergyVelocity(p){
       const m=p.mass??1000, E=p.E_total??1e9, rhoE=p.rho_energy??-1.0, V=p.volume??100;
       const under = (2.0/m)*(E - rhoE*V);
@@ -348,7 +484,6 @@
 
     async function runSim(){
       const status = document.getElementById("status");
-      const t0 = performance.now();
       status.textContent = "Running…";
       try{
         const p = payloadFromUI();
@@ -362,10 +497,26 @@
         const eps = 1e-12; const stability = mean/(std+eps);
         let maxGrad = 0; for(let i=1;i<ds4.length;i++){ const g = Math.abs((ds4[i]-ds4[i-1])/(L[i]-L[i-1])); if(g>maxGrad) maxGrad=g; }
 
-        // Plots (use wrapper Plot)
+        // 2D Plots
         Plot.react("plot_ds4", [{x:L,y:ds4,mode:"lines",name:"ds4(L)"}], {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"L"}, yaxis:{title:"ds4(L)"}});
         Plot.react("plot_X",   [{x:L,y:X,mode:"lines",name:"X(L)"}],   {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"L"}, yaxis:{title:"X(L)"}});
         Plot.react("plot_phase",[{x:ds4,y:X,mode:"lines",name:"phase"}],{margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"ds4(L)"}, yaxis:{title:"X(L)"}});
+
+        // 3D Curve
+        Plot.react3d("plot_3d", [{
+          type: (window.Plotly ? 'scatter3d' : undefined),
+          x:L, y:ds4, z:X, mode:'lines', name:'(L, ds4, X)'
+        }], {
+          margin:{l:0,r:0,b:0,t:0},
+          scene: { xaxis:{title:'L'}, yaxis:{title:'ds4'}, zaxis:{title:'X'} }
+        });
+
+        // Gott sweep T_twist(R)
+        const gr = computeGottRelativistic(p);
+        const R0 = gr.R; const Rmin = Math.max(1e-6, 0.1*R0); const Rmax = 2.0*R0;
+        const Rs = linspace(Rmin, Rmax, 100);
+        const Ts = Rs.map(R => computeGottRelativistic({ ...p, gott_R:R }).T_twist);
+        Plot.react("plot_gott", [{x:Rs, y:Ts, mode:'lines', name:'T_twist(R)'}], {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:'R (m)'}, yaxis:{title:'T_twist (s)'}});
 
         // Info blocks
         document.getElementById("energy_stats").innerHTML = `
@@ -380,14 +531,41 @@
           <div>Stability score (⟨ds4⟩ / σ) = <b>${formatNum(stability)}</b></div>
           <div>Max |∂ds4/∂L| = <b>${formatNum(maxGrad)}</b></div>`;
 
-        const t1 = performance.now();
-        document.getElementById("status").textContent = "Done";
+        // Gott panel results
+        const nature = (gr.mu < 0) ? '<span class="badge badge-bad">exotic (μ<0)</span>' : '<span class="badge badge-ok">normal</span>';
+        const ctc = gr.ctcLikely ? '<span class="badge badge-ok">τ > τ* (CTC likely)</span>' : '<span class="badge badge-bad">τ ≤ τ*</span>';
+        document.getElementById('gott_results').innerHTML = `
+          <div>δ (deficit angle) = <b>${formatNum(gr.delta, 6)}</b> rad</div>
+          <div>τ (twist) = <b>${formatNum(gr.tau, 6)}</b> &nbsp; ${ctc}</div>
+          <div>γ = <b>${formatNum(gr.gamma, 4)}</b>, β = v/c = <b>${formatNum(gr.beta, 3)}</b>, loops N = <b>${gr.loops}</b></div>
+          <div>T<sub>twist</sub> (per N) = <b>${formatNum(gr.T_twist, 6)}</b> s &nbsp; ${nature}</div>`;
+
+        status.textContent = "Done";
       }catch(err){
         console.error(err); document.getElementById("status").textContent = "Error"; alert("Simulation error: "+err.message);
       }
     }
 
-    // ---------------- Simple tests ----------------
+    function runGott(){
+      const p = payloadFromUI();
+      const gr = computeGottRelativistic(p);
+      const nature = (gr.mu < 0) ? '<span class="badge badge-bad">exotic (μ<0)</span>' : '<span class="badge badge-ok">normal</span>';
+      const ctc = gr.ctcLikely ? '<span class="badge badge-ok">τ > τ* (CTC likely)</span>' : '<span class="badge badge-bad">τ ≤ τ*</span>';
+      document.getElementById('gott_results').innerHTML = `
+        <div>δ (deficit angle) = <b>${formatNum(gr.delta, 6)}</b> rad</div>
+        <div>τ (twist) = <b>${formatNum(gr.tau, 6)}</b> &nbsp; ${ctc}</div>
+        <div>γ = <b>${formatNum(gr.gamma, 4)}</b>, β = v/c = <b>${formatNum(gr.beta, 3)}</b>, loops N = <b>${gr.loops}</b></div>
+        <div>T<sub>twist</sub> (per N) = <b>${formatNum(gr.T_twist, 6)}</b> s &nbsp; ${nature}</div>`;
+
+      // refresh sweep
+      const R0 = gr.R; const p0 = { ...p };
+      const Rs = linspace(Math.max(1e-6, 0.1*R0), 2*R0, 100);
+      const Ts = Rs.map(R => computeGottRelativistic({ ...p0, gott_R:R }).T_twist);
+      Plot.react("plot_gott", [{x:Rs, y:Ts, mode:'lines', name:'T_twist(R)'}], {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:'R (m)'}, yaxis:{title:'T_twist (s)'}});
+      document.getElementById('gott_status').textContent = 'Computed';
+    }
+
+    // ---------------- Tests ----------------
     function assert(cond, msg){ return { pass: !!cond, msg }; }
     function showTests(results){
       const host = document.getElementById('test_results'); host.innerHTML = '';
@@ -402,16 +580,31 @@
       const L = linspace(p.L_min, p.L_max, 64);
       const { ds4, X } = computeDS4andX(L, p);
       const tests = [];
-      tests.push(assert(ds4.length === 64 && X.length === 64, 'Outputs have expected length'));
-      tests.push(assert(ds4.every(v => isFinite(v) && v>=0), 'ds4 values are finite and non-negative'));
+      tests.push(assert(ds4.length === 64 && X.length === 64, 'DS4: outputs have expected length'));
+      tests.push(assert(ds4.every(v => isFinite(v) && v>=0), 'DS4: values are finite and non‑negative'));
       // rho scaling: smaller rho -> larger ds4 (since many terms ~1/rho^2)
       const pSmall = { ...p, rho: 0.1 }; const pLarge = { ...p, rho: 0.9 };
       const mSmall = computeDS4andX(L, pSmall).ds4.reduce((a,c)=>a+c,0)/64;
       const mLarge = computeDS4andX(L, pLarge).ds4.reduce((a,c)=>a+c,0)/64;
-      tests.push(assert(mSmall > mLarge, 'Smaller ρ increases ds4 magnitude (scale ~1/ρ²)'));
+      tests.push(assert(mSmall > mLarge, 'DS4: smaller ρ increases ds4 magnitude (~1/ρ²)'));
       // Energy velocity: if E_total == rhoE*Volume then v == 0
       const v0 = computeEnergyVelocity({ mass: 1000, E_total: 1000, rho_energy: 10, volume: 100 }).v;
-      tests.push(assert(Math.abs(v0 - 0) < 1e-9, 'Velocity zero when E_total = ρ_energy·Volume'));
+      tests.push(assert(Math.abs(v0 - 0) < 1e-9, 'Energy: v=0 when E_total = ρ_energy·Volume'));
+      // Gott: T_twist → 0 when μ=0 or v=0
+      const Tmu0 = computeGottRelativistic({ ...p, gott_mu: 0, gott_vfrac: 0.8 }).T_twist;
+      const Tv0  = computeGottRelativistic({ ...p, gott_mu: 1e10, gott_vfrac: 0.0 }).T_twist;
+      tests.push(assert(Math.abs(Tmu0) < 1e-12 && Math.abs(Tv0) < 1e-12, 'Gott: T_twist=0 when μ=0 or v=0'));
+      // Gott: monotonicity w.r.t |μ| and v
+      const Tmu1 = computeGottRelativistic({ ...p, gott_mu: 5e9, gott_vfrac: 0.5 }).T_twist;
+      const Tmu2 = computeGottRelativistic({ ...p, gott_mu: 1e10, gott_vfrac: 0.5 }).T_twist;
+      const Tv1  = computeGottRelativistic({ ...p, gott_mu: 1e10, gott_vfrac: 0.3 }).T_twist;
+      const Tv2  = computeGottRelativistic({ ...p, gott_mu: 1e10, gott_vfrac: 0.8 }).T_twist;
+      tests.push(assert(Tmu2 > Tmu1 && Tv2 > Tv1, 'Gott: T_twist increases with |μ| and v'));
+      // Gott: sign of δ follows sign of μ
+      const dpos = computeGottRelativistic({ ...p, gott_mu: 1e10 }).delta;
+      const dneg = computeGottRelativistic({ ...p, gott_mu: -1e10 }).delta;
+      tests.push(assert(dpos > 0 && dneg < 0, 'Gott: deficit angle δ sign matches μ sign'));
+
       showTests(tests);
     }
 
@@ -422,9 +615,11 @@
       markPlotEngine();
       document.getElementById('run').addEventListener('click', runSim);
       document.getElementById('run-tests').addEventListener('click', runTests);
+      document.getElementById('run-gott').addEventListener('click', runGott);
       // First auto run
       runSim();
       runTests();
+      runGott();
     }
 
     window.addEventListener('DOMContentLoaded', init);
