@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DS4 • Unified GR–QM–HR • Canvas Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg:#0f1115; --panel:#171b22; --card:#1b2230; --ink:#e8eef7; --muted:#9fb2c7; --ok:#51d195; --bad:#ff6b6b; }
+    body { background: linear-gradient(180deg, #0b0f15, #0f1115); color: var(--ink); }
+    .card { background: var(--card); border: 1px solid #243047; border-radius: 16px; }
+    .panel { background: var(--panel); border: 1px solid #212c3f; border-radius: 12px; }
+    .label { color: var(--muted); font-size: 12px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+    @media(min-width: 1024px){ .grid-2 { grid-template-columns: 360px 1fr; } }
+    .badge { padding: 2px 8px; border-radius: 9999px; font-size: 11px; }
+    .badge-ok { background: #1b4731; color: #c5f6d6; border: 1px solid #2c6f4a; }
+    .badge-bad { background: #4a1b1b; color: #ffd1d1; border: 1px solid #733232; }
+    canvas.simple-plot { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="sticky top-0 z-20 backdrop-blur-md bg-black/30 border-b border-white/5">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-lg lg:text-2xl font-semibold">DS4 • Unified GR–QM–HR • Canvas Simulator</h1>
+      <div class="flex items-center gap-3 text-xs">
+        <span id="plot-engine" class="badge"></span>
+        <span class="text-blue-300">Standalone (no backend)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto p-4 lg:p-6 grid-2">
+    <!-- Controls -->
+    <section class="card p-4 lg:p-6 space-y-4">
+      <h2 class="text-xl font-semibold">Parameters</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <div class="label mb-1">L range</div>
+          <div class="flex gap-2">
+            <input id="L_min" type="number" step="0.1" class="w-1/2 panel p-2" value="0">
+            <input id="L_max" type="number" step="0.1" class="w-1/2 panel p-2" value="10">
+          </div>
+        </div>
+        <div>
+          <div class="label mb-1">Resolution (points)</div>
+          <input id="n_pts" type="number" class="panel w-full p-2" value="300" min="16" max="2000">
+        </div>
+
+        <div class="col-span-2 border-t border-white/10 pt-2"></div>
+
+        <div>
+          <div class="label mb-1">ρ (dimensionless)</div>
+          <input id="rho" type="range" min="0.01" max="0.99" step="0.01" value="0.8" oninput="sync('rho')">
+          <div class="text-sm"><span id="rho_val">0.80</span></div>
+        </div>
+        <div>
+          <div class="label mb-1">θ (theta)</div>
+          <input id="theta" type="range" min="0" max="2" step="0.01" value="0.5" oninput="sync('theta')">
+          <div class="text-sm"><span id="theta_val">0.50</span></div>
+        </div>
+
+        <div>
+          <div class="label mb-1">Fρ (coupling)</div>
+          <input id="F_rho" type="range" min="0" max="2" step="0.01" value="0.75" oninput="sync('F_rho')">
+          <div class="text-sm"><span id="F_rho_val">0.75</span></div>
+        </div>
+        <div>
+          <div class="label mb-1">φ (phi)</div>
+          <input id="phi" type="range" min="0" max="6.283" step="0.01" value="1.571" oninput="sync('phi')">
+          <div class="text-sm"><span id="phi_val">1.57</span></div>
+        </div>
+
+        <div class="col-span-2 border-t border-white/10 pt-2"></div>
+
+        <div>
+          <div class="label mb-1">V0 (potential base)</div>
+          <input id="V0" type="range" min="-2" max="4" step="0.01" value="1.0" oninput="sync('V0')">
+          <div class="text-sm"><span id="V0_val">1.00</span></div>
+        </div>
+        <div>
+          <div class="label mb-1">V1 (potential mod)</div>
+          <input id="V1" type="range" min="-2" max="2" step="0.01" value="0.5" oninput="sync('V1')">
+          <div class="text-sm"><span id="V1_val">0.50</span></div>
+        </div>
+
+        <div>
+          <div class="label mb-1">k (freq)</div>
+          <input id="k" type="range" min="0" max="6" step="0.01" value="1.0" oninput="sync('k')">
+          <div class="text-sm"><span id="k_val">1.00</span></div>
+        </div>
+        <div>
+          <div class="label mb-1">ω (omega)</div>
+          <input id="omega" type="range" min="0" max="8" step="0.01" value="1.5" oninput="sync('omega')">
+          <div class="text-sm"><span id="omega_val">1.50</span></div>
+        </div>
+
+        <div>
+          <div class="label mb-1">β (dΨ/dt amp)</div>
+          <input id="beta" type="range" min="0" max="2" step="0.01" value="0.4" oninput="sync('beta')">
+          <div class="text-sm"><span id="beta_val">0.40</span></div>
+        </div>
+        <div>
+          <div class="label mb-1">γ (∇²Ψ amp)</div>
+          <input id="gamma" type="range" min="0" max="2" step="0.01" value="0.3" oninput="sync('gamma')">
+          <div class="text-sm"><span id="gamma_val">0.30</span></div>
+        </div>
+
+        <div class="col-span-2 border-t border-white/10 pt-2"></div>
+
+        <div class="col-span-2">
+          <div class="label mb-1">Polynomial/Trigonometric Coefficients (a1..a8)</div>
+          <div class="grid grid-cols-4 gap-2">
+            <input id="a1" class="panel p-2" type="number" step="0.1" value="1">
+            <input id="a2" class="panel p-2" type="number" step="0.1" value="2">
+            <input id="a3" class="panel p-2" type="number" step="0.1" value="3">
+            <input id="a4" class="panel p-2" type="number" step="0.1" value="4">
+            <input id="a5" class="panel p-2" type="number" step="0.1" value="5">
+            <input id="a6" class="panel p-2" type="number" step="0.1" value="6">
+            <input id="a7" class="panel p-2" type="number" step="0.1" value="7">
+            <input id="a8" class="panel p-2" type="number" step="0.1" value="8">
+          </div>
+        </div>
+
+        <div class="col-span-2 border-t border-white/10 pt-2"></div>
+
+        <div>
+          <div class="label mb-1">Mass m (kg)</div>
+          <input id="mass" type="number" class="panel w-full p-2" value="1000">
+        </div>
+        <div>
+          <div class="label mb-1">E_total (J)</div>
+          <input id="E_total" type="number" class="panel w-full p-2" value="1000000000">
+        </div>
+        <div>
+          <div class="label mb-1">ρ_energy (J/m³)</div>
+          <input id="rho_energy" type="number" class="panel w-full p-2" value="-1.0">
+        </div>
+        <div>
+          <div class="label mb-1">Volume (m³)</div>
+          <input id="volume" type="number" class="panel w-full p-2" value="100">
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 pt-3">
+        <button id="run" class="px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-600">Run Simulation</button>
+        <button id="run-tests" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">Run Tests</button>
+        <span id="status" class="text-sm text-gray-300"></span>
+      </div>
+      <p class="text-xs text-gray-400 pt-2">This standalone version reproduces the Flask UI behavior entirely in the browser for Canvas preview. It now safely loads Plotly (with fallbacks) and includes a simple canvas fallback if CDNs are blocked.</p>
+    </section>
+
+    <!-- Plots -->
+    <section class="space-y-4">
+      <div class="grid lg:grid-cols-2 gap-4">
+        <div class="card p-3">
+          <div class="text-sm label mb-2">ds⁴(L) vs L</div>
+          <div id="plot_ds4" class="w-full" style="height:360px; position:relative;"></div>
+        </div>
+        <div class="card p-3">
+          <div class="text-sm label mb-2">X(L) vs L</div>
+          <div id="plot_X" class="w-full" style="height:360px; position:relative;"></div>
+        </div>
+      </div>
+
+      <div class="card p-3">
+        <div class="text-sm label mb-2">ds⁴(L) vs X(L) (phase view)</div>
+        <div id="plot_phase" class="w-full" style="height:420px; position:relative;"></div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-4">
+        <div class="panel p-4">
+          <div class="text-sm label mb-2">Warp Energy</div>
+          <div id="energy_stats" class="text-sm"></div>
+        </div>
+        <div class="panel p-4">
+          <div class="text-sm label mb-2">Metrics</div>
+          <div id="metric_stats" class="text-sm"></div>
+        </div>
+        <div class="panel p-4">
+          <div class="text-sm label mb-2">Tests</div>
+          <div id="test_results" class="text-sm space-y-1"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ------- Robust Plotly loader with multiple CDNs + canvas fallback -------
+    const PLOTLY_SOURCES = [
+      'https://cdn.plot.ly/plotly-2.35.2.min.js',
+      'https://cdn.jsdelivr.net/npm/plotly.js-dist-min@2.35.2/plotly.min.js',
+      'https://unpkg.com/plotly.js-dist-min@2.35.2/plotly.min.js'
+    ];
+
+    function loadScript(src){
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.async = true; s.onload = () => resolve(src); s.onerror = () => reject(src);
+        document.head.appendChild(s);
+      });
+    }
+
+    async function ensurePlotly(){
+      if (window.Plotly) return true;
+      for (const src of PLOTLY_SOURCES){
+        try { await loadScript(src); if (window.Plotly) return true; } catch(e) { /* try next */ }
+      }
+      return false;
+    }
+
+    // Minimal canvas fallback: supports simple line plots (first trace only)
+    function fallbackLine(divId, data, layout){
+      const host = document.getElementById(divId);
+      host.innerHTML = '';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'simple-plot';
+      canvas.width = host.clientWidth; canvas.height = host.clientHeight;
+      host.appendChild(canvas);
+      const ctx = canvas.getContext('2d');
+      const trace = (data && data[0]) ? data[0] : {x:[], y:[]};
+      const x = trace.x || [], y = trace.y || [];
+      if(!x.length || !y.length){ ctx.fillStyle = '#9fb2c7'; ctx.fillText('No data', 10, 20); return; }
+      const xmin = Math.min(...x), xmax = Math.max(...x);
+      const ymin = Math.min(...y), ymax = Math.max(...y);
+      const pad = 30;
+      function sx(v){ return pad + (v - xmin) * (canvas.width - 2*pad) / ((xmax - xmin) || 1); }
+      function sy(v){ return canvas.height - pad - (v - ymin) * (canvas.height - 2*pad) / ((ymax - ymin) || 1); }
+      // axes
+      ctx.strokeStyle = '#35435e'; ctx.lineWidth = 1; ctx.beginPath();
+      ctx.moveTo(pad, pad); ctx.lineTo(pad, canvas.height - pad); ctx.lineTo(canvas.width - pad, canvas.height - pad); ctx.stroke();
+      // line
+      ctx.strokeStyle = '#7aa2ff'; ctx.lineWidth = 2; ctx.beginPath();
+      ctx.moveTo(sx(x[0]), sy(y[0]));
+      for(let i=1;i<x.length;i++){ ctx.lineTo(sx(x[i]), sy(y[i])); }
+      ctx.stroke();
+      // title (optional)
+      if (layout && layout.xaxis && layout.xaxis.title){ ctx.fillStyle = '#9fb2c7'; ctx.fillText(layout.xaxis.title, canvas.width/2 - 20, canvas.height - 8);}    }
+
+    // Unified plot wrapper; if Plotly exists, use it; else fallback
+    const Plot = {
+      react(divId, data, layout){
+        if (window.Plotly && typeof window.Plotly.react === 'function'){
+          return window.Plotly.react(divId, data, layout);
+        }
+        return fallbackLine(divId, data, layout);
+      }
+    };
+
+    function markPlotEngine(){
+      const el = document.getElementById('plot-engine');
+      if (window.Plotly){ el.textContent = 'Plot engine: Plotly'; el.className = 'badge badge-ok'; }
+      else { el.textContent = 'Plot engine: Canvas fallback'; el.className = 'badge badge-bad'; }
+    }
+
+    // ---------------- DS4 math + UI helpers ----------------
+    function sync(id){
+      const el = document.getElementById(id);
+      const span = document.getElementById(id + "_val");
+      if(span){ span.textContent = Number(el.value).toFixed(id === "phi" ? 2 : 2); }
+    }
+
+    function payloadFromUI(){
+      return {
+        L_min: parseFloat(document.getElementById("L_min").value),
+        L_max: parseFloat(document.getElementById("L_max").value),
+        n_pts: parseInt(document.getElementById("n_pts").value, 10),
+
+        rho: parseFloat(document.getElementById("rho").value),
+        theta: parseFloat(document.getElementById("theta").value),
+        F_rho: parseFloat(document.getElementById("F_rho").value),
+        phi: parseFloat(document.getElementById("phi").value),
+
+        V0: parseFloat(document.getElementById("V0").value),
+        V1: parseFloat(document.getElementById("V1").value),
+        k: parseFloat(document.getElementById("k").value),
+        omega: parseFloat(document.getElementById("omega").value),
+        beta: parseFloat(document.getElementById("beta").value),
+        gamma: parseFloat(document.getElementById("gamma").value),
+
+        a1: parseFloat(document.getElementById("a1").value),
+        a2: parseFloat(document.getElementById("a2").value),
+        a3: parseFloat(document.getElementById("a3").value),
+        a4: parseFloat(document.getElementById("a4").value),
+        a5: parseFloat(document.getElementById("a5").value),
+        a6: parseFloat(document.getElementById("a6").value),
+        a7: parseFloat(document.getElementById("a7").value),
+        a8: parseFloat(document.getElementById("a8").value),
+
+        mass: parseFloat(document.getElementById("mass").value),
+        E_total: parseFloat(document.getElementById("E_total").value),
+        rho_energy: parseFloat(document.getElementById("rho_energy").value),
+        volume: parseFloat(document.getElementById("volume").value)
+      };
+    }
+
+    function computeTerms(L, p){
+      const a1=p.a1??1, a2=p.a2??2, a3=p.a3??3, a4=p.a4??4, a5=p.a5??5, a6=p.a6??6, a7=p.a7??7, a8=p.a8??8;
+      const theta=p.theta??0.5, F_rho=p.F_rho??0.75; let rho=p.rho??0.8; const phi=p.phi??(Math.PI/2);
+      const V0=p.V0??1.0, V1=p.V1??0.5, k=p.k??1.0, beta=p.beta??0.4, gamma=p.gamma??0.3, omega=p.omega??1.5;
+      rho = Math.max(Math.min(rho, 0.999999), 1e-6);
+
+      const b_L = L.map(x => a1*x*x + a2*x + a3);
+      const d_L = L.map(x => a4*Math.sin(x) + a5*Math.cos(x));
+      const r_phi = L.map(_ => a6*phi*phi + a7*phi + a8);
+      const Lmid = 0.5*(L[0]+L[L.length-1]);
+      const Psi_xy = L.map(x => Math.exp(-0.5*(x-Lmid)*(x-Lmid)) * Math.cos(omega*x));
+      const dPsi_dt = L.map(x => beta*Math.sin(omega*x));
+      const nabla2 = L.map(x => -gamma*(omega**2)*Math.cos(omega*x));
+      const Vxy    = L.map(x => V0 + V1*Math.sin(k*x));
+
+      return { rho, F_rho, theta, b_L, d_L, r_phi, dPsi_dt, nabla2, Vxy, Psi_xy };
+    }
+
+    function sq(x){ return x*x; }
+
+    function computeDS4andX(L, p){
+      const t = computeTerms(L, p);
+      const r = t.rho, inv = 1.0/r, oneMinus = (1-r), res_ds4=[], res_X=[];
+      for(let i=0;i<L.length;i++){
+        const psi2 = sq(Math.abs(t.Psi_xy[i]));
+        const sum = sq(t.F_rho*inv) + sq(t.theta*inv) + sq(t.b_L[i]*inv) + sq(t.d_L[i]*inv) + sq(t.r_phi[i]*inv)
+                  + sq(t.dPsi_dt[i]*inv) + sq(t.nabla2[i]*inv) + sq(t.Vxy[i]*inv) + sq((psi2)*inv);
+        res_ds4.push(sum);
+        const multi = sq(oneMinus);
+        const sumX = sq(t.F_rho*inv)*multi + sq(t.theta*inv)*multi + sq(t.b_L[i]*inv)*multi + sq(t.d_L[i]*inv)*multi
+                   + sq(t.r_phi[i]*inv)*multi + sq(t.dPsi_dt[i]*inv)*multi + sq(t.nabla2[i]*inv)*multi + sq(t.Vxy[i]*inv)*multi
+                   + sq((psi2)*inv)*multi;
+        res_X.push(sumX);
+      }
+      return { ds4: res_ds4, X: res_X, rho: t.rho };
+    }
+
+    function computeEnergyVelocity(p){
+      const m=p.mass??1000, E=p.E_total??1e9, rhoE=p.rho_energy??-1.0, V=p.volume??100;
+      const under = (2.0/m)*(E - rhoE*V);
+      const v = under < 0 ? 0 : Math.sqrt(under);
+      return { mass:m, E_total:E, rho_energy:rhoE, Volume:V, v };
+    }
+
+    function formatNum(x, digits=3){
+      if(!isFinite(x)) return String(x);
+      const ax = Math.abs(x);
+      return (ax>=1e4 || ax<1e-2) ? x.toExponential(digits) : x.toFixed(digits);
+    }
+
+    function linspace(a,b,n){ const out=[]; const d=(b-a)/(n-1); for(let i=0;i<n;i++) out.push(a+i*d); return out; }
+
+    async function runSim(){
+      const status = document.getElementById("status");
+      const t0 = performance.now();
+      status.textContent = "Running…";
+      try{
+        const p = payloadFromUI();
+        const L = linspace(p.L_min, p.L_max, Math.max(Math.min(p.n_pts, 2000), 16));
+        const { ds4, X, rho } = computeDS4andX(L, p);
+        const energy = computeEnergyVelocity(p);
+
+        // Metrics
+        const mean = ds4.reduce((a,c)=>a+c,0)/ds4.length;
+        const std = Math.sqrt(ds4.reduce((a,c)=>a+sq(c-mean),0)/ds4.length);
+        const eps = 1e-12; const stability = mean/(std+eps);
+        let maxGrad = 0; for(let i=1;i<ds4.length;i++){ const g = Math.abs((ds4[i]-ds4[i-1])/(L[i]-L[i-1])); if(g>maxGrad) maxGrad=g; }
+
+        // Plots (use wrapper Plot)
+        Plot.react("plot_ds4", [{x:L,y:ds4,mode:"lines",name:"ds4(L)"}], {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"L"}, yaxis:{title:"ds4(L)"}});
+        Plot.react("plot_X",   [{x:L,y:X,mode:"lines",name:"X(L)"}],   {margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"L"}, yaxis:{title:"X(L)"}});
+        Plot.react("plot_phase",[{x:ds4,y:X,mode:"lines",name:"phase"}],{margin:{l:40,r:20,b:40,t:10}, xaxis:{title:"ds4(L)"}, yaxis:{title:"X(L)"}});
+
+        // Info blocks
+        document.getElementById("energy_stats").innerHTML = `
+          <div>m = <b>${formatNum(energy.mass)}</b> kg</div>
+          <div>E<sub>total</sub> = <b>${formatNum(energy.E_total)}</b> J</div>
+          <div>ρ<sub>energy</sub> = <b>${formatNum(energy.rho_energy)}</b> J/m³</div>
+          <div>Volume = <b>${formatNum(energy.Volume)}</b> m³</div>
+          <div class="mt-2">Derived speed v = <span class="px-2 py-0.5 rounded bg-blue-600/30">${formatNum(energy.v)}</span> m/s</div>`;
+
+        document.getElementById("metric_stats").innerHTML = `
+          <div>ρ (divider) = <b>${formatNum(rho)}</b></div>
+          <div>Stability score (⟨ds4⟩ / σ) = <b>${formatNum(stability)}</b></div>
+          <div>Max |∂ds4/∂L| = <b>${formatNum(maxGrad)}</b></div>`;
+
+        const t1 = performance.now();
+        document.getElementById("status").textContent = "Done";
+      }catch(err){
+        console.error(err); document.getElementById("status").textContent = "Error"; alert("Simulation error: "+err.message);
+      }
+    }
+
+    // ---------------- Simple tests ----------------
+    function assert(cond, msg){ return { pass: !!cond, msg }; }
+    function showTests(results){
+      const host = document.getElementById('test_results'); host.innerHTML = '';
+      results.forEach(r => {
+        const div = document.createElement('div');
+        div.innerHTML = `<span class="badge ${r.pass? 'badge-ok':'badge-bad'}">${r.pass? 'PASS':'FAIL'}</span> ${r.msg}`;
+        host.appendChild(div);
+      });
+    }
+    function runTests(){
+      const p = payloadFromUI();
+      const L = linspace(p.L_min, p.L_max, 64);
+      const { ds4, X } = computeDS4andX(L, p);
+      const tests = [];
+      tests.push(assert(ds4.length === 64 && X.length === 64, 'Outputs have expected length'));
+      tests.push(assert(ds4.every(v => isFinite(v) && v>=0), 'ds4 values are finite and non-negative'));
+      // rho scaling: smaller rho -> larger ds4 (since many terms ~1/rho^2)
+      const pSmall = { ...p, rho: 0.1 }; const pLarge = { ...p, rho: 0.9 };
+      const mSmall = computeDS4andX(L, pSmall).ds4.reduce((a,c)=>a+c,0)/64;
+      const mLarge = computeDS4andX(L, pLarge).ds4.reduce((a,c)=>a+c,0)/64;
+      tests.push(assert(mSmall > mLarge, 'Smaller ρ increases ds4 magnitude (scale ~1/ρ²)'));
+      // Energy velocity: if E_total == rhoE*Volume then v == 0
+      const v0 = computeEnergyVelocity({ mass: 1000, E_total: 1000, rho_energy: 10, volume: 100 }).v;
+      tests.push(assert(Math.abs(v0 - 0) < 1e-9, 'Velocity zero when E_total = ρ_energy·Volume'));
+      showTests(tests);
+    }
+
+    // ---------------- Init ----------------
+    async function init(){
+      ["rho","theta","F_rho","phi","V0","V1","k","omega","beta","gamma"].forEach(sync);
+      const ok = await ensurePlotly();
+      markPlotEngine();
+      document.getElementById('run').addEventListener('click', runSim);
+      document.getElementById('run-tests').addEventListener('click', runTests);
+      // First auto run
+      runSim();
+      runTests();
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
